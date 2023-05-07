@@ -39,12 +39,24 @@ add_fileset QUARTUS_SYNTH QUARTUS_SYNTH "" ""
 set_fileset_property QUARTUS_SYNTH TOP_LEVEL multiplexer
 set_fileset_property QUARTUS_SYNTH ENABLE_RELATIVE_INCLUDE_PATHS false
 set_fileset_property QUARTUS_SYNTH ENABLE_FILE_OVERWRITE_MODE false
-add_fileset_file multiplexer.sv SYSTEM_VERILOG PATH SIM/multiplexer.sv TOP_LEVEL_FILE
+add_fileset_file multiplexer.sv SYSTEM_VERILOG PATH RTL/multiplexer.sv TOP_LEVEL_FILE
 
 
 # 
 # parameters
 # 
+
+add_parameter enable_output_register BOOLEAN true ""
+set_parameter_property enable_output_register DEFAULT_VALUE true
+set_parameter_property enable_output_register DISPLAY_NAME "Enable output register"
+set_parameter_property enable_output_register WIDTH ""
+set_parameter_property enable_output_register TYPE BOOLEAN
+set_parameter_property enable_output_register UNITS None
+set_parameter_property enable_output_register DESCRIPTION ""
+set_parameter_property enable_output_register HDL_PARAMETER true
+
+
+
 add_parameter data_width INTEGER 32
 set_parameter_property data_width DEFAULT_VALUE 32
 set_parameter_property data_width DISPLAY_NAME "Width data"
@@ -82,6 +94,9 @@ set_parameter_property channel_width UNITS None
 set_parameter_property channel_width HDL_PARAMETER true
 set_parameter_property channel_width VISIBLE FALSE
 set_parameter_property channel_width DERIVED true
+
+
+
 # 
 # display items
 # 
