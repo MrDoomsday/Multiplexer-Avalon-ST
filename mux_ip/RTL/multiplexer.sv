@@ -146,21 +146,21 @@ always_ff @ (posedge clk)
 
 
 always_comb begin
-	stream_two[0].channel 	= avsi_one_channel;
-	stream_two[0].data 		= avsi_one_data;
-	stream_two[0].valid 	= avsi_one_valid;
-	stream_two[0].sop 		= avsi_one_sop;
-	stream_two[0].eop 		= avsi_one_eop;
-	stream_two[0].empty 	= avsi_one_empty;
+	stream_two[0].channel 	= avsi_two_channel;
+	stream_two[0].data 		= avsi_two_data;
+	stream_two[0].valid 	= avsi_two_valid;
+	stream_two[0].sop 		= avsi_two_sop;
+	stream_two[0].eop 		= avsi_two_eop;
+	stream_two[0].empty 	= avsi_two_empty;
 end
 
 
 always_ff @ (posedge clk or negedge reset_n)
 	if(!reset_n) stream_two[1].valid <= 1'b0;
-	else if(avsi_one_ready) stream_two[1].valid <= stream_two[0].valid;
+	else if(avsi_two_ready) stream_two[1].valid <= stream_two[0].valid;
 
 always_ff @ (posedge clk)
-	if(avsi_one_ready) begin
+	if(avsi_two_ready) begin
 		stream_two[1].channel 	<= stream_two[0].channel;
 		stream_two[1].data 		<= stream_two[0].data;
 		stream_two[1].sop 		<= stream_two[0].sop;
@@ -188,20 +188,20 @@ always_ff @ (posedge clk or negedge reset_n)
 always_comb
 	case(state)
 		idle:		if(stream_one[1].valid && stream_one[1].sop) state_next = send_one;
-					else 	if(stream_two[1].valid && stream_two[1].sop)	state_next = send_two;
+					else if(stream_two[1].valid && stream_two[1].sop) state_next = send_two;
 					else state_next = idle;
 		
 		send_one:	if(stream_one[1].valid && stream_one[1].eop && avsi_one_ready)
 						if(stream_two[1].valid && stream_two[1].sop) state_next = send_two;
-						else	if(stream_one[0].valid && stream_one[0].sop) state_next = send_one;
+						else if(stream_one[0].valid && stream_one[0].sop) state_next = send_one;
 						else state_next = idle;
 					else state_next = send_one;
 		
 		send_two:	if(stream_two[1].valid && stream_two[1].eop && avsi_two_ready)
-							if(stream_one[1].valid && stream_one[1].sop) state_next = send_one;
-							else	if(stream_two[0].valid && stream_two[0].sop)	state_next = send_two;
-							else 	state_next = idle;
-					else 	state_next = send_two;
+						if(stream_one[1].valid && stream_one[1].sop) state_next = send_one;
+						else if(stream_two[0].valid && stream_two[0].sop) state_next = send_two;
+						else state_next = idle;
+					else state_next = send_two;
 		
 		default:	state_next = idle;
 	endcase 
@@ -212,26 +212,26 @@ always_comb
 	
 always_comb
 	case(state)
-		idle:	begin 
-					avsi_one_ready = ~(stream_one[1].valid & stream_one[1].sop);
-					avsi_two_ready = ~(stream_two[1].valid & stream_two[1].sop);
-				end
+		idle: begin 
+			avsi_one_ready = ~(stream_one[1].valid & stream_one[1].sop);
+			avsi_two_ready = ~(stream_two[1].valid & stream_two[1].sop);
+		end
 				
-		send_one:	begin 
-							avsi_one_ready = avso_ready;
-							avsi_two_ready = ~(stream_two[1].valid & stream_two[1].sop);
-						end 
+		send_one: begin 
+			avsi_one_ready = avso_ready;
+			avsi_two_ready = ~(stream_two[1].valid & stream_two[1].sop);
+		end 
 	
 	
-		send_two:	begin 
-							avsi_one_ready = ~(stream_one[1].valid & stream_one[1].sop);
-							avsi_two_ready = avso_ready;		
-						end 
+		send_two: begin 
+			avsi_one_ready = ~(stream_one[1].valid & stream_one[1].sop);
+			avsi_two_ready = avso_ready;		
+		end 
 		
-		default:	begin 
-						avsi_one_ready = 1'b0;
-						avsi_two_ready = 1'b0;
-					end 
+		default: begin 
+			avsi_one_ready = 1'b0;
+			avsi_two_ready = 1'b0;
+		end 
 	endcase 
 	
 	
@@ -249,10 +249,12 @@ always_comb
 /***************************************************************************************************************************/
 
 generate
-	if(enable_output_register) begin:enable_output_register
+	if(enable_output_register) begin:gen_output_register
 		always_ff @ (posedge clk or negedge reset_n)
 		if(!reset_n) avso_valid <= 1'b0;
 		else 	if(avso_ready) begin 
+					avso_valid <= 1'b0;
+
 					case(state)
 						send_one:	avso_valid 	<= stream_one[1].valid;
 						send_two:	avso_valid 	<= stream_two[1].valid;	
@@ -263,64 +265,75 @@ generate
 	
 		always_ff @ (posedge clk)
 			if(avso_ready) begin
+				avso_channel 	<= {channel_width{1'b0}};
+				avso_data 		<= {data_width{1'b0}};
+				avso_sop 		<= 1'b0;
+				avso_eop 		<= 1'b0;
+				avso_empty 		<= {empty_width{1'b0}};
+
 				case(state)
 					send_one:	begin
-										avso_channel 	<= stream_one[1].channel;
-										avso_data 		<= stream_one[1].data;
-										avso_sop 		<= stream_one[1].sop;
-										avso_eop 		<= stream_one[1].eop;
-										avso_empty 		<= stream_one[1].empty;
-									end
+						avso_channel 	<= stream_one[1].channel;
+						avso_data 		<= stream_one[1].data;
+						avso_sop 		<= stream_one[1].sop;
+						avso_eop 		<= stream_one[1].eop;
+						avso_empty 		<= stream_one[1].empty;
+					end
 									
 					send_two:	begin 
-										avso_channel 	<= stream_two[1].channel;
-										avso_data 		<= stream_two[1].data;
-										avso_sop 		<= stream_two[1].sop;
-										avso_eop 		<= stream_two[1].eop;
-										avso_empty 		<= stream_two[1].empty;
-					
-									end
+						avso_channel 	<= stream_two[1].channel;
+						avso_data 		<= stream_two[1].data;
+						avso_sop 		<= stream_two[1].sop;
+						avso_eop 		<= stream_two[1].eop;
+						avso_empty 		<= stream_two[1].empty;
+					end
 									
 					default:	begin 
-									avso_channel 	<= {channel_width{1'b0}};
-									avso_data 		<= {data_width{1'b0}};
-									avso_sop 		<= 1'b0;
-									avso_eop 		<= 1'b0;
-									avso_empty 		<= {empty_width{1'b0}};
-								end 
+						avso_channel 	<= {channel_width{1'b0}};
+						avso_data 		<= {data_width{1'b0}};
+						avso_sop 		<= 1'b0;
+						avso_eop 		<= 1'b0;
+						avso_empty 		<= {empty_width{1'b0}};
+					end 
 				endcase 
 			end 
 	end//if(enable_output_register)
 	else begin
 		always_comb begin
+			avso_channel 	= {channel_width{1'b0}};
+			avso_data 		= {data_width{1'b0}};
+			avso_valid 		= 1'b0;
+			avso_sop 		= 1'b0;
+			avso_eop 		= 1'b0;
+			avso_empty 		= {empty_width{1'b0}};
+
 			case(state)
 				send_one:	begin
-									avso_channel 	= stream_one[1].channel;
-									avso_data 		= stream_one[1].data;
-									avso_valid 		= stream_one[1].valid;
-									avso_sop 		= stream_one[1].sop;
-									avso_eop 		= stream_one[1].eop;
-									avso_empty 		= stream_one[1].empty;
-								end
+					avso_channel 	= stream_one[1].channel;
+					avso_data 		= stream_one[1].data;
+					avso_valid 		= stream_one[1].valid;
+					avso_sop 		= stream_one[1].sop;
+					avso_eop 		= stream_one[1].eop;
+					avso_empty 		= stream_one[1].empty;
+				end
 								
 				send_two:	begin 
-									avso_channel 	= stream_two[1].channel;
-									avso_data 		= stream_two[1].data;
-									avso_valid 		= stream_two[1].valid;
-									avso_sop 		= stream_two[1].sop;
-									avso_eop 		= stream_two[1].eop;
-									avso_empty 		= stream_two[1].empty;
-				
-								end
+					avso_channel 	= stream_two[1].channel;
+					avso_data 		= stream_two[1].data;
+					avso_valid 		= stream_two[1].valid;
+					avso_sop 		= stream_two[1].sop;
+					avso_eop 		= stream_two[1].eop;
+					avso_empty 		= stream_two[1].empty;
+				end
 								
 				default:	begin 
-								avso_channel 	= {channel_width{1'b0}};
-								avso_data 		= {data_width{1'b0}};
-								avso_valid 		= 1'b0;
-								avso_sop 		= 1'b0;
-								avso_eop 		= 1'b0;
-								avso_empty 		= {empty_width{1'b0}};
-							end 
+					avso_channel 	= {channel_width{1'b0}};
+					avso_data 		= {data_width{1'b0}};
+					avso_valid 		= 1'b0;
+					avso_sop 		= 1'b0;
+					avso_eop 		= 1'b0;
+					avso_empty 		= {empty_width{1'b0}};
+				end 
 			endcase 
 		end
 	end//else
